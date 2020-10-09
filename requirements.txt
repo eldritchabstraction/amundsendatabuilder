@@ -60,3 +60,5 @@ unidecode
 
 requests==2.23.0,<3.0
 responses==0.10.6
+
+snowflake-sqlalchemy
