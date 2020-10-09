@@ -1,0 +1,6 @@
+snowflake:
+  username: 'username'
+  password: 'password'
+  account: 'account'
+  warehouse: 'warehouse'
+  db-key: 'database key'
