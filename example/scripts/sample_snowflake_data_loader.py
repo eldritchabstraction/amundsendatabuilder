@@ -13,6 +13,7 @@ import sys
 
 from databuilder.extractor.sql_alchemy_extractor import SQLAlchemyExtractor
 from databuilder.extractor.snowflake_metadata_extractor import SnowflakeMetadataExtractor
+from databuilder.extractor.snowflake_table_last_updated_extractor import SnowflakeTableLastUpdatedExtractor
 from databuilder.job.job import DefaultJob
 from databuilder.loader.file_system_neo4j_csv_loader import FsNeo4jCSVLoader
 from databuilder.publisher import neo4j_csv_publisher
@@ -24,13 +25,14 @@ from databuilder.loader.file_system_elasticsearch_json_loader import FSElasticse
 from databuilder.publisher.elasticsearch_publisher import ElasticsearchPublisher
 from elasticsearch.client import Elasticsearch
 from databuilder.transformer.base_transformer import NoopTransformer
+from databuilder.utils.config import CONFIG
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
 # Disable snowflake logging
 logging.getLogger("snowflake.connector.network").disabled = True
 
-SNOWFLAKE_DATABASE_KEY = 'YourSnowflakeDbName'
+SNOWFLAKE_DATABASE_KEY = CONFIG['snowflake']['db-key']
 
 # set env NEO4J_HOST to override localhost
 NEO4J_ENDPOINT = 'bolt://{}:7687'.format(os.getenv('NEO4J_HOST', 'localhost'))
@@ -57,11 +59,11 @@ es = Elasticsearch([
 def connection_string():
     # Refer this doc: https://docs.snowflake.com/en/user-guide/sqlalchemy.html#connection-parameters
     # for supported connection parameters and configurations
-    user = 'username'
-    password = 'password'
-    account = 'YourSnowflakeAccountHere'
+    user = CONFIG['snowflake']['username']
+    password = CONFIG['snowflake']['password']
+    account = CONFIG['snowflake']['account']
     # specify a warehouse to connect to.
-    warehouse = 'yourwarehouse'
+    warehouse = CONFIG['snowflake']['warehouse']
     return 'snowflake://{user}:{password}@{account}/{database}?warehouse={warehouse}'.format(
         user=user,
         password=password,
@@ -72,7 +74,6 @@ def connection_string():
 
 
 def create_sample_snowflake_job():
-
     where_clause = "WHERE c.TABLE_SCHEMA not in ({0}) \
             AND c.TABLE_SCHEMA not like 'STAGE_%' \
             AND c.TABLE_SCHEMA not like 'HIST_%' \
@@ -107,6 +108,48 @@ def create_sample_snowflake_job():
     job = DefaultJob(conf=job_config,
                      task=task,
                      publisher=Neo4jCsvPublisher())
+    return job
+
+
+def create_sample_snowflake_last_updated_job():
+    where_clause = "WHERE c.TABLE_SCHEMA not in ({0}) \
+                AND c.TABLE_SCHEMA not like 'STAGE_%' \
+                AND c.TABLE_SCHEMA not like 'HIST_%' \
+                AND c.TABLE_SCHEMA not like 'SNAP_%' \
+                AND lower(c.COLUMN_NAME) not like 'dw_%';".format(','.join(IGNORED_SCHEMAS))
+
+    where_clause = ' WHERE t.last_altered IS NOT NULL '
+    tmp_folder = '/var/tmp/amundsen/{}'.format('tables')
+    node_files_folder = '{tmp_folder}/nodes'.format(tmp_folder=tmp_folder)
+    relationship_files_folder = '{tmp_folder}/relationships'.format(tmp_folder=tmp_folder)
+
+    sql_extractor = SnowflakeTableLastUpdatedExtractor()
+    csv_loader = FsNeo4jCSVLoader()
+
+    task = DefaultTask(extractor=sql_extractor,
+                       loader=csv_loader)
+
+    job_config = ConfigFactory.from_dict({
+        'extractor.snowflake_table_last_updated.{}'.format(SnowflakeTableLastUpdatedExtractor.SNOWFLAKE_DATABASE_KEY): SNOWFLAKE_DATABASE_KEY,
+        'extractor.snowflake_table_last_updated.{}'.format(SnowflakeTableLastUpdatedExtractor.WHERE_CLAUSE_SUFFIX_KEY): where_clause,
+        'extractor.snowflake_table_last_updated.{}'.format(SnowflakeTableLastUpdatedExtractor.USE_CATALOG_AS_CLUSTER_NAME): True,
+        'extractor.snowflake_table_last_updated.extractor.sqlalchemy.{}'.format(SQLAlchemyExtractor.CONN_STRING): connection_string(),
+        'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.NODE_DIR_PATH): node_files_folder,
+        'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.RELATION_DIR_PATH): relationship_files_folder,
+        'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.SHOULD_DELETE_CREATED_DIR): True,
+        'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.FORCE_CREATE_DIR): True,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.NODE_FILES_DIR): node_files_folder,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.RELATION_FILES_DIR): relationship_files_folder,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.NEO4J_END_POINT_KEY): neo4j_endpoint,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.NEO4J_USER): neo4j_user,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.NEO4J_PASSWORD): neo4j_password,
+        'publisher.neo4j.{}'.format(neo4j_csv_publisher.JOB_PUBLISH_TAG): 'unique_tag'
+    })
+
+    job = DefaultJob(conf=job_config,
+                     task=task,
+                     publisher=Neo4jCsvPublisher())
+
     return job
 
 
@@ -174,7 +217,12 @@ def create_es_publisher_sample_job(elasticsearch_index_alias='table_search_index
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+
     job = create_sample_snowflake_job()
+    job.launch()
+
+    job = create_sample_snowflake_last_updated_job()
     job.launch()
 
     job_es_table = create_es_publisher_sample_job(
@@ -182,3 +230,4 @@ if __name__ == "__main__":
         elasticsearch_doc_type_key='table',
         model_name='databuilder.models.table_elasticsearch_document.TableESDocument')
     job_es_table.launch()
+
