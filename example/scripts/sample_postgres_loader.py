@@ -13,7 +13,7 @@ import uuid
 from elasticsearch import Elasticsearch
 from pyhocon import ConfigFactory
 from sqlalchemy.ext.declarative import declarative_base
-
+import logging
 from databuilder.extractor.postgres_metadata_extractor import PostgresMetadataExtractor
 from databuilder.extractor.sql_alchemy_extractor import SQLAlchemyExtractor
 from databuilder.extractor.neo4j_extractor import Neo4jExtractor
@@ -52,11 +52,13 @@ neo4j_password = 'test'
 
 # todo: connection string needs to change
 def connection_string():
-    user = 'username'
-    host = 'localhost'
+    user = ''
+    host = ''
+    host = ''
     port = '5432'
-    db = 'postgres'
-    return "postgresql://%s@%s:%s/%s" % (user, host, port, db)
+    db = ''
+    password = ''
+    return "postgresql://%s:%s@%s:%s/%s" % (user, password, host, port, db)
 
 
 def run_postgres_job():
@@ -165,7 +167,11 @@ def create_es_publisher_sample_job(elasticsearch_index_alias='table_search_index
 
 if __name__ == "__main__":
     # Uncomment next line to get INFO level logging
-    # logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=logging.INFO,
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     loading_job = run_postgres_job()
     loading_job.launch()

@@ -34,7 +34,8 @@ class TableLineage(Neo4jCsvSerializable):
         self.cluster = cluster.lower() if cluster else 'gold'
         # a list of downstream dependencies, each of which will follow
         # the same key
-        self.downstream_deps = downstream_deps or []
+        #self.downstream_deps = downstream_deps or []
+        self.downstream_deps = downstream_deps.split(',')
         self._node_iter = iter(self.create_nodes())
         self._relation_iter = iter(self.create_relation())
 
@@ -78,7 +79,8 @@ class TableLineage(Neo4jCsvSerializable):
         for downstream_tab in self.downstream_deps:
             # every deps should follow '{db}://{cluster}.{schema}/{table}'
             # todo: if we change the table uri, we should change here.
-            m = re.match('(\w+)://(\w+)\.(\w+)\/(\w+)', downstream_tab)
+            MATCHER = '(\w+):\/\/(\w+)\.(\w+)\/(\w+)'
+            m = re.match(MATCHER, downstream_tab)
             if m:
                 # if not match, skip those records
                 results.append({

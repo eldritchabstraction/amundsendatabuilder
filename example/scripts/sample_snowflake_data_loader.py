@@ -10,10 +10,12 @@ import os
 from pyhocon import ConfigFactory
 import uuid
 import sys
+# from sqlalchemy.dialects import registry
+
+
 
 from databuilder.extractor.sql_alchemy_extractor import SQLAlchemyExtractor
 from databuilder.extractor.snowflake_metadata_extractor import SnowflakeMetadataExtractor
-from databuilder.extractor.snowflake_table_last_updated_extractor import SnowflakeTableLastUpdatedExtractor
 from databuilder.job.job import DefaultJob
 from databuilder.loader.file_system_neo4j_csv_loader import FsNeo4jCSVLoader
 from databuilder.publisher import neo4j_csv_publisher
@@ -32,7 +34,7 @@ LOGGER.setLevel(logging.INFO)
 # Disable snowflake logging
 logging.getLogger("snowflake.connector.network").disabled = True
 
-SNOWFLAKE_DATABASE_KEY = CONFIG['snowflake']['db-key']
+SNOWFLAKE_DATABASE_KEY = 'CORE'
 
 # set env NEO4J_HOST to override localhost
 NEO4J_ENDPOINT = 'bolt://{}:7687'.format(os.getenv('NEO4J_HOST', 'localhost'))
@@ -56,7 +58,7 @@ es = Elasticsearch([
 
 
 # todo: connection string needs to change
-def connection_string():
+def connection_string(database):
     # Refer this doc: https://docs.snowflake.com/en/user-guide/sqlalchemy.html#connection-parameters
     # for supported connection parameters and configurations
     user = CONFIG['snowflake']['username']
@@ -68,12 +70,13 @@ def connection_string():
         user=user,
         password=password,
         account=account,
-        database=SNOWFLAKE_DATABASE_KEY,
+        database=database, #core/db_wh
         warehouse=warehouse,
     )
 
 
-def create_sample_snowflake_job():
+def create_sample_snowflake_job(database):
+
     where_clause = "WHERE c.TABLE_SCHEMA not in ({0}) \
             AND c.TABLE_SCHEMA not like 'STAGE_%' \
             AND c.TABLE_SCHEMA not like 'HIST_%' \
@@ -91,8 +94,8 @@ def create_sample_snowflake_job():
                        loader=csv_loader)
 
     job_config = ConfigFactory.from_dict({
-        'extractor.snowflake.extractor.sqlalchemy.{}'.format(SQLAlchemyExtractor.CONN_STRING): connection_string(),
-        'extractor.snowflake.{}'.format(SnowflakeMetadataExtractor.SNOWFLAKE_DATABASE_KEY): SNOWFLAKE_DATABASE_KEY,
+        'extractor.snowflake.extractor.sqlalchemy.{}'.format(SQLAlchemyExtractor.CONN_STRING): connection_string(database),
+        'extractor.snowflake.{}'.format(SnowflakeMetadataExtractor.SNOWFLAKE_DATABASE_KEY): database,
         'extractor.snowflake.{}'.format(SnowflakeMetadataExtractor.WHERE_CLAUSE_SUFFIX_KEY): where_clause,
         'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.NODE_DIR_PATH): node_files_folder,
         'loader.filesystem_csv_neo4j.{}'.format(FsNeo4jCSVLoader.RELATION_DIR_PATH): relationship_files_folder,
@@ -217,17 +220,25 @@ def create_es_publisher_sample_job(elasticsearch_index_alias='table_search_index
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    # registry.register('snowflake', 'snowflake.sqlalchemy', 'dialect')
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=logging.INFO,
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
-    job = create_sample_snowflake_job()
-    job.launch()
+    # job = create_sample_snowflake_last_updated_job()
+    # job.launch()
 
-    job = create_sample_snowflake_last_updated_job()
-    job.launch()
+    # job = create_sample_snowflake_job('CORE')
+    # job.launch()
+    # LOGGER.info("finished CORE")
+    # job = create_sample_snowflake_job('DB_WH')
+    # job.launch()
+    # LOGGER.info("finished DB_WH")
 
     job_es_table = create_es_publisher_sample_job(
         elasticsearch_index_alias='table_search_index',
         elasticsearch_doc_type_key='table',
         model_name='databuilder.models.table_elasticsearch_document.TableESDocument')
     job_es_table.launch()
-

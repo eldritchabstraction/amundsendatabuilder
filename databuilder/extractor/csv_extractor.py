@@ -39,7 +39,7 @@ class CsvExtractor(Extractor):
         Create an iterator to execute sql.
         """
         if not hasattr(self, 'results'):
-            with open(self.file_location, 'r') as fin:
+            with open(self.file_location, 'r', encoding='utf-8-sig') as fin:
                 self.results = [dict(i) for i in csv.DictReader(fin)]
 
         if hasattr(self, 'model_class'):

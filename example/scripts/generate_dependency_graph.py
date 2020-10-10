@@ -47,8 +47,8 @@ def generate_graph(table: str, downstream_tables: dict, upstream_tables: dict, t
 def main(source_csv: str, target_folder: str) -> None:
     downstream_tables = {}
     upstream_tables = {}
-    with open(source_csv, newline='') as f:
-        csv_reader = csv.DictReader(f, delimiter='	')
+    with open(source_csv, newline='', encoding='utf-8-sig') as f:
+        csv_reader = csv.DictReader(f, delimiter=',')
         for row in csv_reader:
             table_uri = f'{row["CLUSTER"]}.{row["SCHEMA"]}.{row["TABLE_NAME"]}'
             if table_uri not in downstream_tables:
