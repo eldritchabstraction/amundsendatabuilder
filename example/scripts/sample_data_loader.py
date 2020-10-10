@@ -282,8 +282,7 @@ if __name__ == "__main__":
     # if create_connection(DB_FILE):
         # run_table_column_job('example/sample_data/sample_table.csv', 'example/sample_data/sample_col.csv')
         # run_csv_job('example/sample_data/sample_table_column_stats.csv', 'test_table_column_stats',
-        #             'databuilder.models.table_stats.TableColumnStats')
-        # run_csv_job('example/sample_data/sample_table_programmatic_source.csv', 'test_programmatic_source',
+        #             'databuilder.models.table_06,,,,,/ju9m0[-----------------------i[[[[idk_table_programmatic_source.csv', 'test_programmatic_source',
         #             'databuilder.models.table_metadata.TableMetadata')
         # run_csv_job('example/sample_data/sample_watermark.csv', 'test_watermark_metadata',
         #             'databuilder.models.watermark.Watermark')

@@ -12,10 +12,11 @@ import uuid
 import sys
 # from sqlalchemy.dialects import registry
 
-
+import yaml
 
 from databuilder.extractor.sql_alchemy_extractor import SQLAlchemyExtractor
 from databuilder.extractor.snowflake_metadata_extractor import SnowflakeMetadataExtractor
+from databuilder.extractor.snowflake_table_last_updated_extractor import SnowflakeTableLastUpdatedExtractor
 from databuilder.job.job import DefaultJob
 from databuilder.loader.file_system_neo4j_csv_loader import FsNeo4jCSVLoader
 from databuilder.publisher import neo4j_csv_publisher
@@ -27,7 +28,7 @@ from databuilder.loader.file_system_elasticsearch_json_loader import FSElasticse
 from databuilder.publisher.elasticsearch_publisher import ElasticsearchPublisher
 from elasticsearch.client import Elasticsearch
 from databuilder.transformer.base_transformer import NoopTransformer
-from databuilder.utils.config import CONFIG
+# from databuilder.utils.config import CONFIG
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(logging.INFO)
@@ -70,7 +71,7 @@ def connection_string(database):
         user=user,
         password=password,
         account=account,
-        database=database, #core/db_wh
+        database=database,  # core/db_wh
         warehouse=warehouse,
     )
 
@@ -242,3 +243,4 @@ if __name__ == "__main__":
         elasticsearch_doc_type_key='table',
         model_name='databuilder.models.table_elasticsearch_document.TableESDocument')
     job_es_table.launch()
+    LOGGER.info("finished ElasticSearch")

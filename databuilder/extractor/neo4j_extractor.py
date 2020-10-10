@@ -30,7 +30,7 @@ class Neo4jExtractor(Extractor):
     """NEO4J_VALIDATE_SSL is a boolean indicating whether to validate the server's SSL/TLS cert against system CAs."""
 
     DEFAULT_CONFIG = ConfigFactory.from_dict({NEO4J_MAX_CONN_LIFE_TIME_SEC: 50,
-                                              NEO4J_ENCRYPTED: True,
+                                              NEO4J_ENCRYPTED: False,
                                               NEO4J_VALIDATE_SSL: False})
 
     def init(self, conf: ConfigTree) -> None:
